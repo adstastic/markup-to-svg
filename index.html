@@ -7,156 +7,330 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
-    
-    <!-- React and ReactDOM -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        /* Code block styling */
+        .code-block {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid #2d2d2d;
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .code-block:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Checkerboard background */
+        .checkerboard {
+            background-image: linear-gradient(45deg, #000 25%, transparent 25%),
+                            linear-gradient(-45deg, #000 25%, transparent 25%),
+                            linear-gradient(45deg, transparent 75%, #000 75%),
+                            linear-gradient(-45deg, transparent 75%, #000 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            background-color: white;
+        }
+
+        /* Code display */
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 0;
+        }
+
+        /* Preview styling */
+        .preview-container {
+            position: relative;
+        }
+
+        .preview-container::before {
+            content: 'Preview';
+            position: absolute;
+            top: -1.5rem;
+            left: 0;
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .svg-preview {
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 1px solid #2d2d2d;
+        }
+
+        .svg-preview svg {
+            width: 80px !important;
+            height: 80px !important;
+            min-width: 80px !important;
+            min-height: 80px !important;
+            max-width: 80px !important;
+            max-height: 80px !important;
+            object-fit: contain;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+            min-height: 200px;
+            max-height: 400px;
+            background: #1e1e1e;
+            border-radius: 6px;
+        }
+
+        .svg-dimensions {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            text-align: center;
+            font-size: 10px;
+            color: #d4d4d4;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        /* Scrollbar styling */
+        .code-block::-webkit-scrollbar,
+        pre::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .code-block::-webkit-scrollbar-track,
+        pre::-webkit-scrollbar-track {
+            background: #2d2d2d;
+            border-radius: 4px;
+        }
+
+        .code-block::-webkit-scrollbar-thumb,
+        pre::-webkit-scrollbar-thumb {
+            background: #4d4d4d;
+            border-radius: 4px;
+        }
+
+        .code-block::-webkit-scrollbar-thumb:hover,
+        pre::-webkit-scrollbar-thumb:hover {
+            background: #5d5d5d;
+        }
+    </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-gray-900">
+    <div class="p-4 max-w-[95%] mx-auto">
+        <header class="text-center mb-4">
+            <h1 class="text-2xl font-bold text-gray-100">SVG from markup</h1>
+            <p class="text-gray-400 text-sm">Convert SVG markup or background-image to downloadable SVG files</p>
+        </header>
+        
+        <!-- Input Area -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Paste markup containing SVG (div with background-image or raw SVG)
+            </label>
+            <textarea
+                id="input"
+                class="code-block w-full h-32"
+                placeholder="Paste your markup here..."
+                spellcheck="false"
+            ></textarea>
+            <p id="error" class="mt-2 text-red-400 text-sm hidden"></p>
+        </div>
 
-    <script type="text/babel">
-        const App = () => {
-            const [inputValue, setInputValue] = React.useState('');
-            const [svgContent, setSvgContent] = React.useState('');
-            const [error, setError] = React.useState('');
+        <!-- Preview and Download -->
+        <div id="result" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Preview Section -->
+                <div class="bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-700">
+                    <div class="preview-container">
+                        <div id="preview" class="rounded-md overflow-auto preview-grid"></div>
+                    </div>
+                    <div class="mt-3 flex justify-between items-center">
+                        <span id="svgCount" class="text-sm text-gray-400"></span>
+                        <button
+                            id="downloadBtn"
+                            class="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors shadow-sm"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Download All SVGs
+                        </button>
+                    </div>
+                </div>
 
-            const extractSVG = (input) => {
+                <!-- Code Section -->
+                <div class="bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-700">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        Cleaned SVG Code
+                    </label>
+                    <pre id="svgCode" class="code-block"></pre>
+                    <div id="charCount" class="mt-2 text-xs text-gray-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('input');
+            const error = document.getElementById('error');
+            const result = document.getElementById('result');
+            const preview = document.getElementById('preview');
+            const svgCode = document.getElementById('svgCode');
+            const charCount = document.getElementById('charCount');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const svgCount = document.getElementById('svgCount');
+
+            function getSVGDimensions(svgElement) {
+                const width = svgElement.getAttribute('width') || 
+                            svgElement.getAttribute('viewBox')?.split(' ')[2] || 
+                            'auto';
+                const height = svgElement.getAttribute('height') || 
+                             svgElement.getAttribute('viewBox')?.split(' ')[3] || 
+                             'auto';
+                return { width, height };
+            }
+
+            function extractSVGs(input) {
                 try {
-                    let svg = '';
+                    let svgs = [];
                     
                     // Check for background-image URL format
-                    const urlMatch = input.match(/background-image:\s*url\(&quot;data:image\/svg\+xml;utf8,(.*?)&quot;\)/);
-                    if (urlMatch) {
-                        svg = decodeURIComponent(urlMatch[1]);
-                    } else {
-                        // Look for raw SVG tags
-                        const svgMatch = input.match(/<svg[\s\S]*?<\/svg>/);
-                        if (svgMatch) {
-                            svg = svgMatch[0];
-                        }
+                    const urlMatches = input.matchAll(/background-image:\s*url\(&quot;data:image\/svg\+xml;utf8,(.*?)&quot;\)/g);
+                    for (const match of urlMatches) {
+                        svgs.push(decodeURIComponent(match[1]));
                     }
 
-                    if (!svg) {
-                        throw new Error('No valid SVG found in input');
+                    // Look for raw SVG tags
+                    const svgMatches = input.matchAll(/<svg[\s\S]*?<\/svg>/g);
+                    for (const match of svgMatches) {
+                        svgs.push(match[0]);
+                    }
+
+                    if (svgs.length === 0) {
+                        throw new Error('No valid SVGs found in input');
                     }
 
                     // Clean up any encoded entities
-                    svg = svg.replace(/&quot;/g, '"')
+                    return svgs.map(svg => 
+                        svg.replace(/&quot;/g, '"')
                            .replace(/&lt;/g, '<')
                            .replace(/&gt;/g, '>')
-                           .replace(/&amp;/g, '&');
-
-                    return svg;
+                           .replace(/&amp;/g, '&')
+                    );
                 } catch (err) {
-                    setError('Invalid input format. Please paste content containing an SVG element or background.');
+                    showError('Invalid input format. Please paste content containing SVG elements or backgrounds.');
                     return null;
                 }
-            };
+            }
 
-            const handleInputChange = (e) => {
-                setInputValue(e.target.value);
-                setError('');
+            function showError(message) {
+                error.textContent = message;
+                error.classList.remove('hidden');
+                result.classList.add('hidden');
+            }
+
+            function handleInputChange(e) {
+                error.classList.add('hidden');
+                const extractedSVGs = extractSVGs(e.target.value);
                 
-                const extracted = extractSVG(e.target.value);
-                if (extracted) {
-                    setSvgContent(extracted);
-                    setError('');
+                if (extractedSVGs && extractedSVGs.length > 0) {
+                    // Clear previous previews
+                    preview.innerHTML = '';
+                    
+                    // Create preview for each SVG
+                    extractedSVGs.forEach((svg, index) => {
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'svg-preview checkerboard rounded';
+                        previewDiv.innerHTML = svg;
+
+                        // Add dimensions label
+                        const svgElement = previewDiv.querySelector('svg');
+                        if (svgElement) {
+                            const { width, height } = getSVGDimensions(svgElement);
+                            const dimensionsDiv = document.createElement('div');
+                            dimensionsDiv.className = 'svg-dimensions';
+                            dimensionsDiv.textContent = `${width} × ${height}`;
+                            previewDiv.appendChild(dimensionsDiv);
+                        }
+
+                        preview.appendChild(previewDiv);
+                    });
+
+                    // Update SVG count
+                    svgCount.textContent = `${extractedSVGs.length} SVG${extractedSVGs.length > 1 ? 's' : ''} found`;
+                    
+                    // Update code view with all SVGs
+                    svgCode.textContent = extractedSVGs.join('\n\n');
+                    charCount.textContent = `${svgCode.textContent.length} characters total`;
+                    
+                    result.classList.remove('hidden');
                 }
-            };
+            }
 
-            const handleDownload = () => {
-                if (!svgContent) return;
-                
+            function handleDownload() {
+                const svgs = preview.querySelectorAll('.svg-preview');
+                if (svgs.length === 0) return;
+
+                if (svgs.length === 1) {
+                    // Single SVG download
+                    const svgContent = svgs[0].querySelector('svg').outerHTML;
+                    downloadSVG(svgContent, 'icon.svg');
+                } else {
+                    // Multiple SVGs - create zip
+                    const zip = new JSZip();
+                    svgs.forEach((svg, index) => {
+                        zip.file(`icon-${index + 1}.svg`, svg.querySelector('svg').outerHTML);
+                    });
+                    
+                    zip.generateAsync({type: "blob"}).then(function(content) {
+                        const url = window.URL.createObjectURL(content);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'icons.zip';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    });
+                }
+            }
+
+            function downloadSVG(svgContent, filename) {
                 const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
                 const url = window.URL.createObjectURL(blob);
-                
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'icon.svg';
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
-                
-                // Cleanup
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 0);
-            };
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
 
-            // Download icon SVG
-            const DownloadIcon = () => (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-            );
-
-            return (
-                <div className="p-6 space-y-6 max-w-3xl mx-auto">
-                    <h1 className="text-2xl font-bold text-gray-900">SVG from markup</h1>
-                    
-                    {/* Input Area */}
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                            Paste markup containing SVG (div with background-image or raw SVG)
-                        </label>
-                        <textarea
-                            value={inputValue}
-                            onChange={handleInputChange}
-                            className="w-full h-48 p-3 border border-gray-300 rounded-md font-mono text-sm"
-                            placeholder="Paste your markup here..."
-                        />
-                        {error && (
-                            <p className="text-red-500 text-sm">{error}</p>
-                        )}
-                    </div>
-
-                    {/* Preview and Download */}
-                    {svgContent && (
-                        <div className="space-y-4">
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white rounded-lg p-4 border border-gray-200 gap-4">
-                                <div 
-                                    className="w-32 h-32 flex items-center justify-center p-4 bg-gray-50 rounded border border-gray-100" 
-                                    dangerouslySetInnerHTML={{ __html: svgContent }} 
-                                />
-                                
-                                <div className="flex flex-col gap-2">
-                                    <button
-                                        onClick={handleDownload}
-                                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                                    >
-                                        <DownloadIcon />
-                                        Download SVG
-                                    </button>
-                                    <div className="text-xs text-gray-500 font-mono">
-                                        {svgContent.length} characters
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* SVG Output */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Cleaned SVG Code:
-                                </label>
-                                <pre className="p-4 bg-gray-50 rounded-md text-xs text-gray-600 overflow-x-auto border border-gray-200">
-                                    {svgContent}
-                                </pre>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        // Render the app
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+            // Event listeners
+            input.addEventListener('input', handleInputChange);
+            downloadBtn.addEventListener('click', handleDownload);
+        });
     </script>
+    <!-- JSZip for multiple SVG downloads -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </body>
 </html>
